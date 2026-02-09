@@ -391,5 +391,33 @@ export const sendEmailOtp =  catchAsyncError(async(req,res,next)=>{
             })
 })   
 
+export const verifyEmailOtp =  catchAsyncError(async(req,res,next)=>{
+               const{email,otp} = req.body
+               if(!email || !otp){
+                return  next(new errorHandler('kindly fill the required fields',400))
+               }     
+               const user =  await User.findOne({email})
+               if(!user){
+                return next(new errorHandler('user is not exist in out database',400))
+               }
+              if(!user.emailOtp || Date.now()> user.emailOtpExpire){
+                return next(new errorHandler('OTP is expire',400))
+              } 
+              const hashedOtp = crypto
+                               .createHash('sha256')
+                               .update(otp.toString())
+                               .digest('hex')
+             if(hashedOtp !==user.emailOtp){
+                return next (new errorHandler('OTP is invalid',400))
+             } 
+           user.isEmailVerified = true
+           user.emailOtp = undefined
+           user.emailOtpExpire= undefined 
+           await user.save()
+           res.status(200).json({
+            success:true,
+            message:'OTP verify successfully'
+           })                  
+})
    ///newPassword1234
    //newPassword12345@
