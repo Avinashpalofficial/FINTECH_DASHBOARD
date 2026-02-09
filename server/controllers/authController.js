@@ -294,6 +294,102 @@ export  const forgotPassword =  catchAsyncError(async(req,res,next)=>{
                                     
    })               
 
+export const sendEmailOtp =  catchAsyncError(async(req,res,next)=>{
+           const {email} = req.body
+           if(!email){
+            return next(new errorHandler('Kindly fill the email',400))
+           }
+           const user =  await User.findOne({email})
+           if(!user){
+            return next(new errorHandler('user is  not exist',400))
+           }
+           const otpGenerate = Math.floor(100000+Math.random()*900000)
+           const otpHash = crypto
+                        .createHash('sha256')
+                        .update(otpGenerate.toString())
+                        .digest('hex')
+            user.emailOtp = otpHash
+            user.emailOtpExpire = Date.now()+10*60*1000
+            await user.save()            
+            await sendEmail({
+                email:user.email,
+                subject:'Email verification Otp',
+                message: `
+  <div style="
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+  ">
+    
+    <h2 style="
+      text-align: center;
+      color: #111827;
+      margin-bottom: 16px;
+    ">
+      🔐 Email Verification
+    </h2>
+
+    <p style="
+      font-size: 14px;
+      color: #374151;
+      line-height: 1.6;
+    ">
+      Hello,
+    </p>
+
+    <p style="
+      font-size: 14px;
+      color: #374151;
+      line-height: 1.6;
+    ">
+      Please use the following One-Time Password (OTP) to verify your email address:
+    </p>
+
+    <div style="
+      margin: 20px 0;
+      padding: 14px;
+      text-align: center;
+      background-color: #f3f4f6;
+      border-radius: 6px;
+      font-size: 24px;
+      letter-spacing: 4px;
+      font-weight: bold;
+      color: #111827;
+    ">
+      ${otpGenerate}
+    </div>
+
+    <p style="
+      font-size: 13px;
+      color: #6b7280;
+    ">
+      ⏳ This OTP is valid for <b>10 minutes</b>.  
+      Please do not share it with anyone.
+    </p>
+
+    <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;" />
+
+    <p style="
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+    ">
+      If you did not request this, you can safely ignore this email.
+    </p>
+
+  </div>
+`
+
+            })  
+            res.status(200).json({
+                success:true,
+                message:'OTP send successfully '
+            })
+})   
 
    ///newPassword1234
    //newPassword12345@
