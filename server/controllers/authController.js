@@ -1,4 +1,4 @@
-import { success } from "zod";
+import { date, success } from "zod";
 import { catchAsyncError } from "../middleware/asyncError.js";
 import { User } from "../models/userModel.js";
 import {errorHandler} from '../utils/errorHandler.js'
@@ -83,12 +83,12 @@ export  const forgotPassword =  catchAsyncError(async(req,res,next)=>{
                                                         .createHash('sha256')
                                                         .update(resetToekn)
                                                         .digest('hex')
-                                user.resetPasswordExpire=Date.now()+5*60*1000 
+                                user.resetPasswordExpire=Date.now()+10*60*1000 
                                  return resetToekn                      
                    }  
                     const holdRestToken = resetTokenFunction()
                     await user.save({validateBeforeSave:false})
-                    const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/password/reset/${holdRestToken}`;
+                    const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/user/password/reset/${holdRestToken}`;
                     const message=`
                   <!DOCTYPE html>
                   <html>
@@ -262,3 +262,38 @@ export  const forgotPassword =  catchAsyncError(async(req,res,next)=>{
                   }
 
                   })
+
+   export const resetPassword =  catchAsyncError(async(req,res,next)=>{
+                const {newPassword,confirmNewPassword} = req.body
+                const {token} = req.params
+                if(!newPassword || !confirmNewPassword){
+                        return next(new errorHandler('Please fill the required fields',400))
+                }
+               if(newPassword != confirmNewPassword){
+                return next(new errorHandler(' Password is not matched',400))
+               }
+              const  hashed =     await  hashPassword(req.body.newPassword)
+              console.log("hased:",hashed);
+              
+              const resetPasswordToken =  crypto
+                                         .createHash('sha256')
+                                         .update(token)
+                                         .digest('hex')
+              const user =  await User.findOne({
+                resetPasswordToken:resetPasswordToken,
+                resetPasswordExpire:{$gt: Date.now()} 
+              }) 
+              if(!user){
+                return next(new errorHandler('user is not found',400))
+              }
+              user.password =hashed,
+              user.resetPasswordToken=undefined,
+              user.resetPasswordExpire= undefined
+           await user.save()
+           sendToken(user,200,res)
+                                    
+   })               
+
+
+   ///newPassword1234
+   //newPassword12345@
